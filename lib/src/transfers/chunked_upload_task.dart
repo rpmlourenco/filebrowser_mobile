@@ -77,6 +77,7 @@ class ChunkedUploadTask {
   bool _pauseRequested = false;
   bool _cancelRequested = false;
   String? _error;
+  bool _restartOnResume = false;
 
   /// Live snapshots; the current one is always available via [snapshot].
   Stream<ChunkedUploadRecord> get updates => _controller.stream;
@@ -96,6 +97,7 @@ class ChunkedUploadTask {
     _pauseRequested = false;
     _cancelRequested = false;
     _error = null;
+    _restartOnResume = false;
     try {
       _total = await File(localFilePath).length();
     } on IOException {
@@ -112,6 +114,10 @@ class ChunkedUploadTask {
   /// left the server's temp file truncated exactly there).
   Future<void> resume() async {
     if (_status != TransferStatus.paused) return;
+    if (_restartOnResume) {
+      _committed = 0;
+      _restartOnResume = false;
+    }
     _status = TransferStatus.running;
     _pauseRequested = false;
     _emit(_progress());
@@ -129,7 +135,7 @@ class ChunkedUploadTask {
     } on DioException {
       // The signal is best-effort: without it an aborted chunk just costs a
       // restart from 0 on resume. Never continue from an unconfirmed offset.
-      _committed = 0;
+      _restartOnResume = true;
     }
     _inflight?.cancel();
   }

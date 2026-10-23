@@ -1247,7 +1247,6 @@ class _GalleryTile extends StatelessWidget {
           CachedNetworkImage(
             // Grid previews should not retain full-resolution decoded images.
             memCacheWidth: 384,
-            memCacheHeight: 384,
             imageUrl: client.previewUri(item.path).toString(),
             httpHeaders: client.authHeaders,
             fit: BoxFit.cover,

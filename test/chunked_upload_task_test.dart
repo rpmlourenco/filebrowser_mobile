@@ -182,6 +182,28 @@ void main() {
         isTrue);
   });
 
+  test('a failed pause signal restarts safely with the same session', () async {
+    final adapter = MockAdapter((r) => r.path.endsWith('/pause')
+        ? MockAdapter.json({}, status: 503)
+        : MockAdapter.json({}));
+    final task = _task(_client(adapter), await _tempFile(List.filled(30, 3)));
+    Future<void>? pause;
+    final sub = task.updates.listen((r) {
+      if (pause == null && r.status == TransferStatus.running && r.progress > 0) {
+        pause = task.pause();
+      }
+    });
+    await task.start();
+    await pause;
+    await sub.cancel();
+    expect(task.snapshot.status, TransferStatus.paused);
+    final before = adapter.requests.length;
+    await task.resume();
+    expect(adapter.requests[before].headers['X-File-Chunk-Offset'], '0');
+    expect(adapter.requests[before].headers['X-File-Upload-Session'], 'c1');
+    expect(task.snapshot.status, TransferStatus.complete);
+  });
+
   test('a file truncated mid-upload fails rather than looping forever', () async {
     final path = await _tempFile(List.filled(25, 3));
     final adapter = MockAdapter((_) {

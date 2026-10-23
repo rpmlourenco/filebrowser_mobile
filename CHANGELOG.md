@@ -13,7 +13,8 @@ section of this file as the release notes.
 - Keep uploads on their original source when the source selection changes.
 - Report HTTP and local-file failures; detect files truncated during upload.
 - Show upload failures in the browser and refresh after successful uploads.
-- Bound decoded grid thumbnails to 384 x 384 pixels to reduce memory use.
+- Bound decoded grid thumbnail width to 384 pixels to reduce memory use
+  while preserving image proportions.
 - Replace launcher, adaptive, monochrome, and splash graphics with the official
   FileBrowser Quantum folder icon (this remains an unofficial client).
 - Test integration against Quantum 2.0.1 and validate before publishing a signed APK.
