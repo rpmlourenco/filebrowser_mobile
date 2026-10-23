@@ -25,6 +25,8 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:filebrowser_mobile/src/api/filebrowser_client.dart';
 import 'package:filebrowser_mobile/src/api/models.dart';
+import 'package:filebrowser_mobile/src/transfers/chunked_upload_task.dart';
+import 'package:filebrowser_mobile/src/transfers/transfer_record.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // Target server is configurable and defaults to a LOCAL test server — never a
@@ -116,6 +118,31 @@ void main() {
     expect(utf8.decode(got), 'quantum round trip $stamp');
   });
 
+  test('APK-sized upload crosses the default 10 MiB boundary without corruption', () async {
+    final dir = await Directory.systemTemp.createTemp('quantum-apk-');
+    try {
+      final bytes = Uint8List(defaultUploadChunkSize + 137);
+      for (var i = 0; i < bytes.length; i++) {
+        bytes[i] = i % 251;
+      }
+      final local = File('${dir.path}/test.apk');
+      await local.writeAsBytes(bytes);
+      final remote = p('large.apk');
+      final task = ChunkedUploadTask(client: client, remotePath: remote,
+          localFilePath: local.path, id: 'apk-$stamp');
+      try {
+        await task.start();
+        expect(task.snapshot.status, TransferStatus.complete);
+        final received = await download(client.rawDownloadUri(remote));
+        expect(received, orderedEquals(bytes));
+      } finally {
+        task.dispose();
+      }
+    } finally {
+      await dir.delete(recursive: true);
+    }
+  });
+
   test('chunked upload assembles sequential chunks into the file', () async {
     // Three uneven chunks; the server finalizes on the last one (see
     // FileBrowserClient.uploadChunk).
@@ -126,6 +153,7 @@ void main() {
       final end = (offset + chunkSize).clamp(0, content.length);
       await client.uploadChunk(
         file,
+          sessionId: 'test-upload-session',
         offset: offset,
         totalSize: content.length,
         bytes: Uint8List.fromList(content.sublist(offset, end)),
@@ -141,6 +169,7 @@ void main() {
     await upload(file, utf8.encode('existing'));
     await expectLater(
       () => client.uploadChunk(file,
+          sessionId: 'test-upload-session',
           offset: 0, totalSize: 4, bytes: Uint8List.fromList([1, 2, 3, 4])),
       throwsA(isA<DioException>()
           .having((e) => e.response?.statusCode, 'status', 409)),
@@ -154,11 +183,13 @@ void main() {
     // First chunk, then a graceful pause, then resume from the committed
     // offset — the server must still assemble the full file correctly.
     await client.uploadChunk(file,
+          sessionId: 'test-upload-session',
         offset: 0,
         totalSize: content.length,
         bytes: Uint8List.fromList(content.sublist(0, 1000)));
     await client.pauseUpload(file);
     await client.uploadChunk(file,
+          sessionId: 'test-upload-session',
         offset: 1000,
         totalSize: content.length,
         bytes: Uint8List.fromList(content.sublist(1000)));

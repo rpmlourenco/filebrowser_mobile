@@ -97,6 +97,23 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Validate app before building
+        if: steps.exists.outputs.released == 'false'
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test --exclude-tags integration
+          ./tool/serve.sh run > .quantum-test-release.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          ready=false
+          for i in $(seq 1 60); do
+            if curl -fsS -o /dev/null http://localhost:8080/; then ready=true; break; fi
+            sleep 1
+          done
+          if [ "$ready" != true ]; then cat .quantum-test-release.log; exit 1; fi
+          flutter test --tags integration --run-skipped
+
       - name: Build signed release APK
         if: steps.exists.outputs.released == 'false'
         run: |
@@ -109,12 +126,21 @@ jobs:
         if: steps.exists.outputs.released == 'false'
         run: |
           # apksigner prints the signer cert; a debug-signed APK has CN=Android Debug.
-          "$ANDROID_HOME"/build-tools/*/apksigner verify --print-certs \
+          apksigner="$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)"
+          "$apksigner" verify --print-certs \
             "filebrowser-mobile-${{ steps.version.outputs.tag }}.apk" | tee /tmp/certs.txt
           if grep -q "CN=Android Debug" /tmp/certs.txt; then
             echo "APK is debug-signed — refusing to publish" >&2
             exit 1
           fi
+
+      - name: Upload APK artifact
+        if: steps.exists.outputs.released == 'false'
+        uses: actions/upload-artifact@v7
+        with:
+          name: filebrowser-quantum-apk
+          path: filebrowser-mobile-${{ steps.version.outputs.tag }}.apk
+          if-no-files-found: error
 
       - name: Extract changelog section
         if: steps.exists.outputs.released == 'false'

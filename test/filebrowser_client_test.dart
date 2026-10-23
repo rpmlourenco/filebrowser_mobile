@@ -348,10 +348,26 @@ void main() {
   });
 
   group('chunked upload protocol', () {
+    test('401 renewal replays identical chunk bytes and session', () async {
+      var attempts = 0;
+      final (client, adapter) = makeClient((r) {
+        if (r.path.endsWith('/auth/renew')) return MockAdapter.text(liveToken);
+        return attempts++ == 0
+            ? MockAdapter.text('expired', status: 401)
+            : MockAdapter.json({});
+      });
+      final bytes = Uint8List.fromList(List.generate(256, (i) => i));
+      await client.uploadChunk('/big.apk', sessionId: 'renew-session',
+          offset: 0, totalSize: bytes.length, bytes: bytes);
+      expect(adapter.bodies.first, bytes);
+      expect(adapter.bodies.last, bytes);
+      expect(adapter.requests.last.headers['X-File-Upload-Session'], 'renew-session');
+    });
     test('uploadChunk posts raw bytes with offset/total headers', () async {
       final (client, adapter) = makeClient((_) => MockAdapter.json({}));
       final bytes = List<int>.generate(8, (i) => i);
       await client.uploadChunk('/dir/big.bin',
+          sessionId: 'test-upload-session',
           offset: 16,
           totalSize: 24,
           bytes: Uint8List.fromList(bytes),

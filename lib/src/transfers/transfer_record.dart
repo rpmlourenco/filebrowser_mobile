@@ -65,6 +65,7 @@ sealed class TransferRecord {
 
   /// Total size in bytes once known (`-1` until then).
   int get expectedFileSize;
+  String? get errorMessage => null;
 
   bool get isActive => status.isActive;
   bool get isComplete => status == TransferStatus.complete;
@@ -127,6 +128,7 @@ final class ChunkedUploadRecord extends TransferRecord {
     required this.status,
     required this.progress,
     required this.expectedFileSize,
+    this.errorMessage,
   });
 
   @override
@@ -139,6 +141,9 @@ final class ChunkedUploadRecord extends TransferRecord {
   final double progress;
   @override
   final int expectedFileSize;
+
+  @override
+  final String? errorMessage;
 
   @override
   bool get isUpload => true;

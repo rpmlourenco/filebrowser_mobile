@@ -29,8 +29,8 @@ const int defaultUploadChunkSize = 10 * 1024 * 1024;
 ///  - [pause] is graceful: it signals `/api/resources/pause` (the server then
 ///    truncates to the committed offset and keeps its temp file) and aborts
 ///    the in-flight chunk; [resume] continues from `_committed`.
-///  - [cancel] aborts the in-flight chunk without the pause signal, which
-///    makes the server discard its temp file — nothing is left behind.
+///  - [cancel] aborts the in-flight chunk. Server cleanup of abandoned
+///    partial uploads depends on the Quantum version.
 ///
 /// The task reports itself as a stream of immutable [ChunkedUploadRecord]
 /// snapshots; [TransferService] folds those into the unified transfers list.
@@ -47,11 +47,13 @@ class ChunkedUploadTask {
     this.maxAttempts = 5,
     this.retryBaseDelay = const Duration(seconds: 2),
   })  : _client = client,
+        _source = client.source,
         _id = id,
         assert(chunkSize > 0),
         assert(maxAttempts > 0);
 
   final FileBrowserClient _client;
+  final String? _source;
   final String remotePath;
   final String localFilePath;
   final bool override;
@@ -74,6 +76,7 @@ class ChunkedUploadTask {
   CancelToken? _inflight;
   bool _pauseRequested = false;
   bool _cancelRequested = false;
+  String? _error;
 
   /// Live snapshots; the current one is always available via [snapshot].
   Stream<ChunkedUploadRecord> get updates => _controller.stream;
@@ -84,18 +87,23 @@ class ChunkedUploadTask {
   /// Returns when the upload reaches a final state *or* pauses; a paused
   /// upload is continued with [resume].
   Future<void> start() async {
-    if (_status == TransferStatus.running) return;
+    if (_status == TransferStatus.running ||
+        _status == TransferStatus.retrying ||
+        _status == TransferStatus.paused) return;
     _status = TransferStatus.running;
     _committed = 0;
     _attempts = 0;
     _pauseRequested = false;
     _cancelRequested = false;
+    _error = null;
     try {
       _total = await File(localFilePath).length();
     } on IOException {
+      _error = 'Local file could not be read.';
       _settle(TransferStatus.failed);
       return;
     }
+    if (_cancelRequested) return;
     _emit(_progress());
     await _run();
   }
@@ -117,16 +125,16 @@ class ChunkedUploadTask {
     if (_status != TransferStatus.running) return;
     _pauseRequested = true;
     try {
-      await _client.pauseUpload(remotePath);
+      await _client.pauseUpload(remotePath, sourceName: _source);
     } on DioException {
       // The signal is best-effort: without it an aborted chunk just costs a
-      // restart from 0 on resume (the loop detects the lost temp via failure).
+      // restart from 0 on resume. Never continue from an unconfirmed offset.
+      _committed = 0;
     }
     _inflight?.cancel();
   }
 
-  /// Cancels the upload. Aborting without the pause signal makes the server
-  /// discard its partial temp file, so no orphan is left behind.
+  /// Cancels the upload and stops sending bytes.
   void cancel() {
     if (!_status.isActive) return;
     _cancelRequested = true;
@@ -139,8 +147,9 @@ class ChunkedUploadTask {
   }
 
   Future<void> _run() async {
-    final file = await File(localFilePath).open();
+    RandomAccessFile? file;
     try {
+      file = await File(localFilePath).open();
       while (_status == TransferStatus.running) {
         if (_cancelRequested) {
           _settle(TransferStatus.canceled);
@@ -157,6 +166,11 @@ class ChunkedUploadTask {
         final length = math.min(chunkSize, _total - _committed);
         await file.setPosition(_committed);
         final bytes = await file.read(length);
+        if (bytes.length != length) {
+          _error = 'Local file changed during upload. Please retry.';
+          _settle(TransferStatus.failed);
+          return;
+        }
         final token = _inflight = CancelToken();
         try {
           await _client.uploadChunk(
@@ -164,6 +178,8 @@ class ChunkedUploadTask {
             offset: _committed,
             totalSize: _total,
             bytes: bytes,
+            sessionId: _id,
+            sourceName: _source,
             override: override,
             cancelToken: token,
             onSendProgress: (sent, _) => _emitThrottled(
@@ -177,8 +193,11 @@ class ChunkedUploadTask {
           _inflight = null;
         }
       }
+    } on IOException {
+      _error = 'Local file could not be read.';
+      _settle(TransferStatus.failed);
     } finally {
-      await file.close();
+      await file?.close();
     }
   }
 
@@ -198,6 +217,7 @@ class ChunkedUploadTask {
     final permanent = code != null && code >= 400 && code < 500;
     _attempts++;
     if (permanent || _attempts >= maxAttempts) {
+      _error = code == null ? 'Network error. Please retry.' : 'HTTP $code';
       _settle(TransferStatus.failed);
       return false;
     }
@@ -248,9 +268,11 @@ class ChunkedUploadTask {
         status: _status,
         progress: progress,
         expectedFileSize: _total,
+        errorMessage: _error,
       );
 
   void dispose() {
+    cancel();
     _controller.close();
   }
 }

@@ -61,6 +61,7 @@ class FileBrowserClient {
   // Marks a request that has already been retried once after a renew, so the
   // 401 interceptor attempts at most one renew+retry per request.
   static const _kRetriedMarker = '__fb_retried__';
+  static const _kUploadBytes = '__fb_upload_bytes__';
 
   String? _token;
   String? _source;
@@ -272,6 +273,11 @@ class FileBrowserClient {
     // Replay the original request once with the refreshed token.
     req.extra[_kRetriedMarker] = true;
     req.headers['Authorization'] = 'Bearer $_token';
+    // A consumed request stream cannot be replayed after token renewal.
+    final uploadBytes = req.extra[_kUploadBytes];
+    if (uploadBytes is Uint8List) {
+      req.data = Stream<Uint8List>.fromIterable([uploadBytes]);
+    }
     try {
       final replayed = await _dio.fetch<dynamic>(req);
       handler.resolve(replayed);
@@ -369,9 +375,10 @@ class FileBrowserClient {
   /// Upload target URL: `POST` here with the file's raw bytes as the body.
   /// The server replies 409 Conflict when the path exists and [override] is
   /// false.
-  Uri uploadUri(String path, {bool override = true}) => _scopedUri(
+  Uri uploadUri(String path, {bool override = true, String? sourceName}) => _scopedUri(
         'resources',
-        {'path': path, 'override': override.toString()},
+        {'path': path, 'override': override.toString(),
+          if (sourceName != null) 'source': sourceName},
       );
 
   /// Uploads one chunk of a chunked (resumable) upload.
@@ -385,7 +392,11 @@ class FileBrowserClient {
   /// chunk performs the conflict check: 409 when the path exists and
   /// [override] is false.
   ///
-  /// Failure semantics (verified against v1.4.0-stable): a chunk aborted
+  /// X-File-Upload-Session identifies one upload across all chunks, pauses,
+  /// and retries. Quantum 2.x requires this header and scopes partial files
+  /// and path ownership to it. Keep the same identifier for automatic restarts.
+  ///
+  /// Legacy failure semantics (v1.4.0-stable): a chunk aborted
   /// mid-body destroys the server's temp file, so after a transport error the
   /// upload must restart from offset 0. Only a graceful pause — [pauseUpload]
   /// then aborting the in-flight chunk — preserves the temp file (truncated to
@@ -395,17 +406,21 @@ class FileBrowserClient {
     required int offset,
     required int totalSize,
     required Uint8List bytes,
+    required String sessionId,
+    String? sourceName,
     bool override = false,
     void Function(int sent, int total)? onSendProgress,
     CancelToken? cancelToken,
   }) async {
     await renewIfNeeded();
     await _dio.postUri(
-      uploadUri(path, override: override),
+      uploadUri(path, override: override, sourceName: sourceName),
       data: Stream<Uint8List>.fromIterable([bytes]),
       options: Options(
+        extra: {_kUploadBytes: bytes},
         headers: {
           ...?_bearer(),
+          'X-File-Upload-Session': sessionId,
           'X-File-Chunk-Offset': '$offset',
           'X-File-Total-Size': '$totalSize',
           Headers.contentLengthHeader: bytes.length,
@@ -422,9 +437,10 @@ class FileBrowserClient {
   /// back to the last committed offset and *preserves* the temp file, so the
   /// upload can resume from that offset. Call this right before aborting the
   /// in-flight chunk request.
-  Future<void> pauseUpload(String path) async {
+  Future<void> pauseUpload(String path, {String? sourceName}) async {
     await _dio.postUri(
-      _scopedUri('resources/pause', {'path': path}),
+      _scopedUri('resources/pause', {'path': path,
+        if (sourceName != null) 'source': sourceName}),
       options: _authOptions(),
     );
   }

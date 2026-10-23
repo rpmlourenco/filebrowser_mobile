@@ -5,6 +5,21 @@ All notable changes to this project are documented here. The release workflow
 version in `pubspec.yaml` is bumped on `main`, and uses the matching `## x.y.z`
 section of this file as the release notes.
 
+## 0.4.1
+
+- Fix uploads above 10 MiB on Quantum 2.0.1 by preserving one
+  X-File-Upload-Session identifier across chunks, pauses, and retries.
+- Replay the full chunk body after a 401 token renewal.
+- Keep uploads on their original source when the source selection changes.
+- Report HTTP and local-file failures; detect files truncated during upload.
+- Show upload failures in the browser and refresh after successful uploads.
+- Bound decoded grid thumbnails to 384 x 384 pixels to reduce memory use.
+- Replace launcher, adaptive, monochrome, and splash graphics with the official
+  FileBrowser Quantum folder icon (this remains an unofficial client).
+- Test integration against Quantum 2.0.1 and validate before publishing a signed APK.
+- This fork uses its own Android package and signing key. It installs alongside
+  the upstream app; enter your server URL and sign in on first launch.
+
 ## 0.4.0
 
 - Sharing now offers two methods everywhere: **Share link** (public server

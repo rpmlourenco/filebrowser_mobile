@@ -20,7 +20,7 @@ BIN="$WORK/fb-official"
 CFG="$WORK/config.yaml"
 DATA="$WORK/fbdata"
 PORT="${FB_TEST_PORT:-8080}"
-REL="v1.4.0-stable"
+REL="${FB_TEST_RELEASE:-v2.0.1-stable}"
 
 # Pick the release asset for this host (assets are named <os>-<arch>-filebrowser).
 os="$(uname -s | tr '[:upper:]' '[:lower:]')"
@@ -40,9 +40,10 @@ setup() {
   fi
   if [ ! -f "$CFG" ]; then
     cat > "$CFG" <<EOF
-server:
+http:
   port: $PORT
   baseURL: "/"
+server:
   sources:
     - path: "$DATA"
       name: "files"

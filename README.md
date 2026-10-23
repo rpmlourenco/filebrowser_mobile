@@ -1,7 +1,9 @@
+> Unofficial rpmlourenco fork. Version 0.4.1 fixes Quantum 2.0.1 large-file uploads and uses the official Quantum icon. The APK installs alongside the upstream app because this fork has its own signing key and package ID. Sign in again after installing. Upstream: https://github.com/jjshoots/filebrowser_mobile.
+
 # Filebrowser Quantum — Android client (Flutter)
 
-[![CI](https://github.com/jjshoots/filebrowser_mobile/actions/workflows/ci.yml/badge.svg)](https://github.com/jjshoots/filebrowser_mobile/actions/workflows/ci.yml)
-[![Latest release](https://img.shields.io/github/v/release/jjshoots/filebrowser_mobile)](https://github.com/jjshoots/filebrowser_mobile/releases/latest)
+[![CI](https://github.com/rpmlourenco/filebrowser_mobile/actions/workflows/ci.yml/badge.svg)](https://github.com/rpmlourenco/filebrowser_mobile/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/jjshoots/filebrowser_mobile)](https://github.com/rpmlourenco/filebrowser_mobile/releases/latest)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 An Android app for [Filebrowser Quantum](https://github.com/gtsteffaniak/filebrowser) —
@@ -16,7 +18,7 @@ clean and the test suite is green).
 
 ## Install
 
-Grab the APK from the [latest release](https://github.com/jjshoots/filebrowser_mobile/releases/latest)
+Grab the APK from the [latest release](https://github.com/rpmlourenco/filebrowser_mobile/releases/latest)
 and sideload it, or build from source (see [Build & run](#build--run)). You
 need a running [Filebrowser Quantum](https://github.com/gtsteffaniak/filebrowser)
 server to connect to.
@@ -105,7 +107,7 @@ passed as query parameters (not URL segments), and every path-scoped call carrie
 | Download     | `GET /api/resources/download?source=<S>&file=<p>` (repeat `file=` + `algo=zip` to bundle) |
 | Preview      | `GET /api/resources/preview?source=<S>&path=<p>&size=<small\|large\|original>` |
 | Upload       | `POST /api/resources?path=<p>&source=<S>&override=…`, raw bytes as the body |
-| Chunked upload | same POST with `X-File-Chunk-Offset` / `X-File-Total-Size` headers per chunk; server finalizes on the last chunk |
+| Chunked upload | same POST with `X-File-Chunk-Offset` / `X-File-Total-Size` / `X-File-Upload-Session` headers per chunk; server finalizes on the last chunk |
 | Pause upload | `POST /api/resources/pause?path=<p>&source=<S>` (preserves the server-side partial for resume) |
 | New folder   | `POST /api/resources?path=<p>&source=<S>&isDir=true`                      |
 | Delete       | `DELETE /api/resources?path=<p>&source=<S>`                               |

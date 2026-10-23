@@ -62,6 +62,8 @@ void main() {
     await sub.cancel();
 
     expect(adapter.requests, hasLength(3));
+    expect(adapter.requests.map((r) => r.headers['X-File-Upload-Session']).toSet(),
+        {'c1'});
     for (final (i, expected) in const [(0, 10), (10, 10), (20, 5)].indexed) {
       final req = adapter.requests[i];
       expect(req.headers['X-File-Chunk-Offset'], '${expected.$1}');
@@ -87,6 +89,7 @@ void main() {
 
     expect(adapter.requests, hasLength(1)); // no second attempt
     expect(task.snapshot.status, TransferStatus.failed);
+    expect(task.snapshot.errorMessage, 'HTTP 409');
   });
 
   test('a transient 500 restarts from offset 0 and then succeeds', () async {
@@ -164,6 +167,32 @@ void main() {
         .map((r) => r.headers['X-File-Chunk-Offset'])
         .toList();
     expect(offsets, ['0', '10', '20']); // no chunk repeated, none skipped
+    expect(adapter.requests.where((r) => r.headers.containsKey('X-File-Chunk-Offset'))
+        .map((r) => r.headers['X-File-Upload-Session']).toSet(), {'c1'});
+  });
+
+  test('source selection changes do not redirect an upload', () async {
+    final adapter = MockAdapter((_) => MockAdapter.json({}));
+    final client = _client(adapter);
+    final path = await _tempFile(List.filled(25, 3));
+    final task = _task(client, path);
+    client.setSource('another-source');
+    await task.start();
+    expect(adapter.requests.every((r) => r.uri.queryParameters['source'] == 'files'),
+        isTrue);
+  });
+
+  test('a file truncated mid-upload fails rather than looping forever', () async {
+    final path = await _tempFile(List.filled(25, 3));
+    final adapter = MockAdapter((_) {
+      File(path).writeAsBytesSync([1, 2]);
+      return MockAdapter.json({});
+    });
+    final task = _task(_client(adapter), path);
+    await task.start();
+    expect(task.snapshot.status, TransferStatus.failed);
+    expect(task.snapshot.errorMessage, contains('changed'));
+    expect(adapter.requests, hasLength(1));
   });
 
   test('cancel settles to canceled and stops sending', () async {

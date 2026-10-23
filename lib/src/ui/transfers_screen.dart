@@ -93,6 +93,8 @@ class _TransferTile extends StatelessWidget {
             ),
           const SizedBox(height: 4),
           Text(transferStatusLabel(loc, record)),
+          if (record.errorMessage != null)
+            SelectableText(record.errorMessage!),
         ],
       ),
       trailing: Row(

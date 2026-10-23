@@ -71,6 +71,9 @@ class _BrowserScreenState extends State<BrowserScreen> {
   // overlapping destination pickers/upload runs at once.
   StreamSubscription<List<SharedMediaFile>>? _shareSub;
   bool _handlingShare = false;
+  StreamSubscription<List<TransferRecord>>? _transferSub;
+  final Map<String, TransferStatus> _transferStatuses = {};
+  Timer? _uploadRefresh;
 
   PreferencesStore get _prefs => context.read<PreferencesStore>();
 
@@ -137,6 +140,27 @@ class _BrowserScreenState extends State<BrowserScreen> {
     // Rebuild the screen chrome (app bar / action bar) when selection changes.
     _selection.addListener(_onSelectionChanged);
     _initShareIntake();
+    _transferSub = _transfers.records.listen((records) {
+      if (!mounted) return;
+      for (final record in records) {
+        if (_transferStatuses[record.id] == record.status) continue;
+        if (record.isFailed) {
+          showErrorSnackBar(ScaffoldMessenger.of(context),
+              '${record.filename}: ${_loc.transfersStatusFailed}'
+              '${record.errorMessage == null ? '' : ' (${record.errorMessage})'}');
+        }
+        if (record.isUpload && record.isComplete) {
+          // Coalesce a batch of completions into one directory request.
+          _uploadRefresh?.cancel();
+          _uploadRefresh = Timer(const Duration(milliseconds: 300), () {
+            if (mounted) _open(_path);
+          });
+        }
+      }
+      _transferStatuses
+        ..clear()
+        ..addEntries(records.map((r) => MapEntry(r.id, r.status)));
+    });
   }
 
   /// Wires inbound share-into-app: the one-shot intent that launched/relaunched
@@ -163,6 +187,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
   @override
   void dispose() {
     _shareSub?.cancel();
+    _transferSub?.cancel();
+    _uploadRefresh?.cancel();
     _selection.removeListener(_onSelectionChanged);
     _selection.dispose();
     _scrollController.dispose();
@@ -1219,6 +1245,9 @@ class _GalleryTile extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           CachedNetworkImage(
+            // Grid previews should not retain full-resolution decoded images.
+            memCacheWidth: 384,
+            memCacheHeight: 384,
             imageUrl: client.previewUri(item.path).toString(),
             httpHeaders: client.authHeaders,
             fit: BoxFit.cover,

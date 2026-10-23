@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Brand palette (see tool/brand/). quantum_indigo is the splash/icon base. -->
 <resources>
-    <color name="quantum_indigo">#141A3A</color>
+    <color name="quantum_indigo">#141D24</color>
     <color name="quantum_violet">#6D28D9</color>
     <color name="quantum_cyan">#22D3EE</color>
     <color name="quantum_pink">#F472B6</color>

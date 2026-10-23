@@ -1,16 +1,12 @@
-<svg viewBox="0 0 108 108" xmlns="http://www.w3.org/2000/svg">
-<g transform="translate(54,54) scale(0.19) translate(-256,-278)" fill="none" stroke="#FFFFFF">
-<g stroke-linecap="round">
-<g transform="rotate(-24 256 278)"><ellipse cx="256" cy="278" rx="168" ry="60" stroke-width="9"/></g>
-<g transform="rotate(38 256 278)"><ellipse cx="256" cy="278" rx="168" ry="60" stroke-width="9"/></g>
-<g transform="rotate(90 256 278)"><ellipse cx="256" cy="278" rx="168" ry="56" stroke-width="8"/></g>
-</g>
-<path d="M132 236 a18 18 0 0 1 18 -18 h74 a14 14 0 0 1 11 6 l13 18 h94 a18 18 0 0 1 18 18 v112 a18 18 0 0 1 -18 18 H132 z" fill="#FFFFFF" stroke="none"/>
-<circle cx="256" cy="278" r="30" fill="#FFFFFF" stroke="none"/>
-<g fill="#FFFFFF" stroke="none">
-<g transform="rotate(-24 256 278)"><circle cx="424" cy="278" r="16"/></g>
-<g transform="rotate(38 256 278)"><circle cx="88" cy="278" r="16"/></g>
-<g transform="rotate(90 256 278)"><circle cx="256" cy="110" r="14"/></g>
-</g>
-</g>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108"><g transform="translate(22 22) scale(2)">
+  <!-- Background circle -->
+
+
+  <!-- Back folder (orange, barely higher and left) -->
+  <path d="M5 8h6l2 2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2z"
+        fill="#FFFFFF"/>
+
+  <!-- Front folder (blue, almost same position) -->
+  <path d="M6 9h6l2 2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V11a2 2 0 0 1 2-2z"
+        fill="#FFFFFF"/>
+</g></svg>
