@@ -90,7 +90,9 @@ class ChunkedUploadTask {
   Future<void> start() async {
     if (_status == TransferStatus.running ||
         _status == TransferStatus.retrying ||
-        _status == TransferStatus.paused) return;
+        _status == TransferStatus.paused) {
+      return;
+    }
     _status = TransferStatus.running;
     _committed = 0;
     _attempts = 0;
