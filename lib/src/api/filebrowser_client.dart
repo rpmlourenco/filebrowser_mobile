@@ -519,7 +519,7 @@ class FileBrowserClient {
     final qp = <String, dynamic>{
       'query': query,
       if (_source != null) 'sources': _source,
-      'scope': base,
+        if (_source != null) 'scope': '$_source:$base',
     };
     final resp = await _dio.getUri(
       _endpoint('tools/search').replace(queryParameters: qp),

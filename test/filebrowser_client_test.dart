@@ -83,7 +83,7 @@ void main() {
       expect(uri.queryParameters['query'], 'rëport space');
       expect(uri.queryParameters['sources'], 'mydisk');
       // scope is the base path with a guaranteed trailing slash.
-      expect(uri.queryParameters['scope'], '/My Photos/2024/');
+      expect(uri.queryParameters['scope'], 'mydisk:/My Photos/2024/');
       expect(hits.single.path, '/a.txt');
       expect(hits.single.source, 'mydisk');
     });

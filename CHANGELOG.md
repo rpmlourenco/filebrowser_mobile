@@ -11,6 +11,7 @@ section of this file as the release notes.
   X-File-Upload-Session identifier across chunks, pauses, and retries.
 - Replay the full chunk body after a 401 token renewal.
 - Keep uploads on their original source when the source selection changes.
+- Fix Quantum 2 search requests to use source-qualified scopes.
 - Report HTTP and local-file failures; detect files truncated during upload.
 - Show upload failures in the browser and refresh after successful uploads.
 - Bound decoded grid thumbnail width to 384 pixels to reduce memory use
