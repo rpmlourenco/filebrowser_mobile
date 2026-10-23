@@ -183,7 +183,7 @@ void main() {
   });
 
   test('a failed pause signal restarts safely with the same session', () async {
-    final adapter = MockAdapter((r) => r.path.endsWith('/pause')
+    final adapter = MockAdapter((r) => r.uri.path.endsWith('/pause')
         ? MockAdapter.json({}, status: 503)
         : MockAdapter.json({}));
     final task = _task(_client(adapter), await _tempFile(List.filled(30, 3)));

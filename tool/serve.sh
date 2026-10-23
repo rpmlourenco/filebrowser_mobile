@@ -61,7 +61,6 @@ userDefaults:
       admin: true
       modify: true
       share: true
-      delete: true
       create: true
       download: true
 EOF
