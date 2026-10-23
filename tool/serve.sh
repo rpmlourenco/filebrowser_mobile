@@ -47,6 +47,14 @@ server:
   sources:
     - path: "$DATA"
       name: "files"
+      config:
+        defaultEnabled: true
+        defaultPermissions:
+          view: true
+          download: true
+          modify: true
+          delete: true
+          create: true
 auth:
   adminUsername: "admin"
   adminPassword: "admin12345"
@@ -59,10 +67,8 @@ userDefaults:
   account:
     permissions:
       admin: true
-      modify: true
       share: true
-      create: true
-      download: true
+      api: true
 EOF
   fi
   if [ ! -d "$DATA" ]; then
